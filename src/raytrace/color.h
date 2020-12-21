@@ -16,7 +16,7 @@
 #include <iostream>
 
 
-void write_color(std::ostream &out, color pixel_color, int samples_per_pixel) {
+vec3 sample_color(color pixel_color, int samples_per_pixel) {
     auto r = pixel_color.x();
     auto g = pixel_color.y();
     auto b = pixel_color.z();
@@ -32,10 +32,14 @@ void write_color(std::ostream &out, color pixel_color, int samples_per_pixel) {
     g = sqrt(scale * g);
     b = sqrt(scale * b);
 
+    return vec3(r, g, b);
+}
+
+void write_color(std::ostream &out, vec3 color) {
     // Write the translated [0,255] value of each color component.
-    out << static_cast<int>(256 * clamp(r, 0.0, 0.999)) << ' '
-        << static_cast<int>(256 * clamp(g, 0.0, 0.999)) << ' '
-        << static_cast<int>(256 * clamp(b, 0.0, 0.999)) << '\n';
+    out << static_cast<int>(256 * clamp(color.x(), 0.0, 0.999)) << ' '
+        << static_cast<int>(256 * clamp(color.y(), 0.0, 0.999)) << ' '
+        << static_cast<int>(256 * clamp(color.z(), 0.0, 0.999)) << '\n';
 }
 
 

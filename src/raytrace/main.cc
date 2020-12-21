@@ -18,6 +18,10 @@
 #include "sphere.h"
 
 #include <iostream>
+#include <fstream>
+#include <chrono>
+#include <thread>
+#include <mutex>
 
 
 color ray_color(const ray& r, const hittable& world, int depth) {
@@ -88,7 +92,11 @@ hittable_list random_scene() {
 }
 
 
-int main() {
+int main(int argc, char* argv[]) {
+    int thread_count = 0;
+    if (argc == 2) {
+        thread_count = atoi(argv[1]);
+    }
 
     // Image
 
@@ -97,6 +105,7 @@ int main() {
     const int image_height = static_cast<int>(image_width / aspect_ratio);
     const int samples_per_pixel = 10;
     const int max_depth = 50;
+    std::vector<vec3> image(image_height * image_width);
 
     // World
 
@@ -114,10 +123,13 @@ int main() {
 
     // Render
 
-    std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+    auto t0 = std::chrono::system_clock::now();
 
-    for (int j = image_height-1; j >= 0; --j) {
+    auto progress = [](int j) {
         std::cerr << "\rScanlines remaining: " << j << ' ' << std::flush;
+    };
+
+    auto renderLine = [&](int j) {
         for (int i = 0; i < image_width; ++i) {
             color pixel_color(0,0,0);
             for (int s = 0; s < samples_per_pixel; ++s) {
@@ -126,9 +138,53 @@ int main() {
                 ray r = cam.get_ray(u, v);
                 pixel_color += ray_color(r, world, max_depth);
             }
-            write_color(std::cout, pixel_color, samples_per_pixel);
+            image[j * image_width + i] = sample_color(pixel_color, samples_per_pixel);
+        }
+    };
+
+    if (thread_count == 0) {
+        for (int j = image_height - 1; j >= 0; --j) {
+            progress(j);
+            renderLine(j);
+        }
+    } else {
+        int lines = image_height;
+        std::mutex line_mutex;
+        std::vector<std::thread> threads;
+
+        auto threadMain = [&]() {
+            for (;;) {
+                int cur_line;
+                {
+                    auto lock = std::lock_guard(line_mutex);
+                    cur_line = --lines;
+                    if (cur_line < 0) {
+                        break;
+                    }
+                    progress(cur_line);
+                }
+                renderLine(cur_line);
+            }
+        };
+        for (int i = 0; i < thread_count; i++) {
+            threads.emplace_back(threadMain);
+        }
+        for (auto& th: threads) {
+            th.join();
         }
     }
 
+    auto time = std::chrono::system_clock::now() - t0;
+
+    std::ofstream of("out.ppm");
+    of << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+    for (int j = image_height-1; j >= 0; --j) {
+        for (int i = 0; i < image_width; ++i) {
+            write_color(of, image[j * image_width + i]);
+        }
+    }
+    of.close();
+
     std::cerr << "\nDone.\n";
+    std::cerr << "Time[s]: " << static_cast<std::chrono::nanoseconds>(time).count() / 1000000000.0 << std::endl;
 }
