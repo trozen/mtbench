@@ -13,6 +13,7 @@
 #include <cstdlib>
 #include <limits>
 #include <memory>
+#include <random>
 
 
 // Usings
@@ -40,7 +41,9 @@ inline double clamp(double x, double min, double max) {
 
 inline double random_double() {
     // Returns a random real in [0,1).
-    return rand() / (RAND_MAX + 1.0);
+    thread_local std::default_random_engine rnd;
+    std::uniform_real_distribution<double> dist;
+    return dist(rnd);
 }
 
 inline double random_double(double min, double max) {
