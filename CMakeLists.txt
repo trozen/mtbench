@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
-project(puma)
+project(mtbench)
 
 set(CMAKE_CXX_STANDARD 17)
 
+add_executable(raytrace src/raytrace/main.cc)
